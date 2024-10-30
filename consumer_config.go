@@ -126,6 +126,7 @@ func (cfg *ConsumerConfig) newCronsumerConfig() *kcronsumer.Config {
 			MaxRetry:             cfg.RetryConfiguration.MaxRetry,
 			VerifyTopicOnStartup: cfg.RetryConfiguration.VerifyTopicOnStartup,
 			Concurrency:          cfg.RetryConfiguration.Concurrency,
+			QueueCapacity:        cfg.RetryConfiguration.QueueCapacity,
 			MinBytes:             cfg.Reader.MinBytes,
 			MaxBytes:             cfg.Reader.MaxBytes,
 			MaxWait:              cfg.Reader.MaxWait,
@@ -137,8 +138,10 @@ func (cfg *ConsumerConfig) newCronsumerConfig() *kcronsumer.Config {
 			RetentionTime:        cfg.Reader.RetentionTime,
 		},
 		Producer: kcronsumer.ProducerConfig{
-			Balancer: cfg.RetryConfiguration.Balancer,
-			Brokers:  cfg.RetryConfiguration.Brokers,
+			Balancer:     cfg.RetryConfiguration.Balancer,
+			Brokers:      cfg.RetryConfiguration.Brokers,
+			BatchSize:    cfg.RetryConfiguration.ProducerBatchSize,
+			BatchTimeout: cfg.RetryConfiguration.ProducerBatchTimeout,
 		},
 		LogLevel: lcronsumer.Level(cfg.RetryConfiguration.LogLevel),
 	}
@@ -225,6 +228,9 @@ type RetryConfiguration struct {
 	WorkDuration          time.Duration
 	SkipMessageByHeaderFn SkipMessageByHeaderFn
 	Concurrency           int
+	QueueCapacity         int
+	ProducerBatchSize     int
+	ProducerBatchTimeout  time.Duration
 }
 
 type BatchConfiguration struct {
