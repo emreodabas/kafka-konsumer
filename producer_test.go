@@ -84,7 +84,7 @@ func Test_producer_Close_Successfully(t *testing.T) {
 
 type mockWriter struct{}
 
-func (m *mockWriter) WriteMessages(_ context.Context, msg ...kafka.Message) error {
+func (m *mockWriter) WriteMessages(_ context.Context, _ ...kafka.Message) error {
 	return nil
 }
 

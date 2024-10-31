@@ -3,7 +3,6 @@ package kafka
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -17,39 +16,31 @@ type client struct {
 	*kafka.Client
 }
 
-var (
-	kafkaClientInstance *client
-	kafkaClientOnce     sync.Once
-)
-
 func newKafkaClient(cfg *ConsumerConfig) (kafkaClient, error) {
 	var err error
-	kafkaClientOnce.Do(func() {
-		kc := &client{
-			Client: &kafka.Client{
-				Addr: kafka.TCP(cfg.Reader.Brokers...),
-			},
-		}
+	kc := &client{
+		Client: &kafka.Client{
+			Addr: kafka.TCP(cfg.Reader.Brokers...),
+		},
+	}
 
-		transport := &Transport{
-			Transport: &kafka.Transport{
-				MetadataTopics: cfg.getTopics(),
-			},
-		}
-		if err = fillLayer(transport, cfg.SASL, cfg.TLS); err != nil {
-			err = fmt.Errorf("error when initializing kafka client for verify topic purpose %w", err)
-			return
-		}
+	transport := &Transport{
+		Transport: &kafka.Transport{
+			MetadataTopics: cfg.getTopics(),
+		},
+	}
+	if err = fillLayer(transport, cfg.SASL, cfg.TLS); err != nil {
+		err = fmt.Errorf("error when initializing kafka client for verify topic purpose %w", err)
+		return nil, err
+	}
 
-		kc.Transport = transport
-		kafkaClientInstance = kc
-	})
+	kc.Transport = transport
 
 	if err != nil {
 		return nil, err
 	}
 
-	return kafkaClientInstance, nil
+	return kc, nil
 }
 
 func (k *client) GetClient() *kafka.Client {
