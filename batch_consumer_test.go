@@ -256,17 +256,16 @@ func Test_batchConsumer_process(t *testing.T) {
 			},
 		}
 
-		// When
-		bc.process([]*Message{{}, {}, {}})
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic")
+			}
+		}()
 
-		// Then
-		if bc.metric.TotalProcessedMessagesCounter != 0 {
-			t.Fatalf("Total Processed Message Counter must equal to 0")
-		}
-		if bc.metric.TotalUnprocessedMessagesCounter != 3 {
-			t.Fatalf("Total Unprocessed Message Counter must equal to 3")
-		}
+		// When && Then
+		bc.process([]*Message{{}, {}, {}})
 	})
+
 	t.Run("When_Transactional_Retry_Disabled", func(t *testing.T) {
 		// Given
 		mc := &mockCronsumer{wantErr: true}
@@ -286,16 +285,14 @@ func Test_batchConsumer_process(t *testing.T) {
 			},
 		}
 
-		// When
-		bc.process([]*Message{{}, {}, {}})
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic")
+			}
+		}()
 
-		// Then
-		if bc.metric.TotalProcessedMessagesCounter != 0 {
-			t.Fatalf("Total Processed Message Counter must equal to 0")
-		}
-		if bc.metric.TotalUnprocessedMessagesCounter != 3 {
-			t.Fatalf("Total Unprocessed Message Counter must equal to 3")
-		}
+		// When && Then
+		bc.process([]*Message{{}, {}, {}})
 	})
 }
 
