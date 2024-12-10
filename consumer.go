@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -152,8 +153,10 @@ func (c *consumer) process(message *Message) {
 	if consumeErr != nil && c.retryEnabled {
 		retryableMsg := message.toRetryableMessage(c.retryTopic, consumeErr.Error())
 		if produceErr := c.cronsumer.Produce(retryableMsg); produceErr != nil {
-			c.logger.Errorf("Error producing message %s to exception/retry topic %s",
+			errorMessage := fmt.Sprintf("Error producing message %s to exception/retry topic %s",
 				string(retryableMsg.Value), produceErr.Error())
+			c.logger.Error(errorMessage)
+			panic(errorMessage)
 		}
 	}
 
