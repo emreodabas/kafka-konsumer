@@ -11,9 +11,10 @@ const Name = "kafka_konsumer"
 type MetricCollector struct {
 	consumerMetric *ConsumerMetric
 
-	totalUnprocessedMessagesCounter      *prometheus.Desc
-	totalProcessedMessagesCounter        *prometheus.Desc
-	totalErrorCountDuringFetchingMessage *prometheus.Desc
+	totalUnprocessedMessagesCounter              *prometheus.Desc
+	totalProcessedMessagesCounter                *prometheus.Desc
+	totalErrorCountDuringFetchingMessage         *prometheus.Desc
+	totalErrorDuringProducingToRetryTopicCounter *prometheus.CounterVec
 }
 
 func NewMetricCollector(metricPrefix string, consumerMetric *ConsumerMetric) *MetricCollector {
@@ -41,6 +42,14 @@ func NewMetricCollector(metricPrefix string, consumerMetric *ConsumerMetric) *Me
 			"Total number of error during fetching message.",
 			emptyStringList,
 			nil,
+		),
+
+		totalErrorDuringProducingToRetryTopicCounter: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "retry_topic_produce_errors_total",
+				Help: "Total number of errors encountered during message production, labeled by topic and partition.",
+			},
+			[]string{"topic", "partition"},
 		),
 	}
 }
@@ -72,6 +81,10 @@ func (s *MetricCollector) Collect(ch chan<- prometheus.Metric) {
 		float64(s.consumerMetric.TotalErrorCountDuringFetchingMessage),
 		emptyStringList...,
 	)
+
+	s.consumerMetric.CollectMetrics(s.totalErrorDuringProducingToRetryTopicCounter)
+	s.totalErrorDuringProducingToRetryTopicCounter.Collect(ch)
+
 }
 
 func NewMetricMiddleware(cfg *ConsumerConfig,

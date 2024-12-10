@@ -154,6 +154,7 @@ func (c *consumer) process(message *Message) {
 		if produceErr := c.cronsumer.Produce(retryableMsg); produceErr != nil {
 			c.logger.Errorf("Error producing message %s to exception/retry topic %s",
 				string(retryableMsg.Value), produceErr.Error())
+			c.metric.IncrementTotalErrorDuringProducingToRetryTopicCounter(retryableMsg.Topic, retryableMsg.Partition)
 		}
 	}
 
