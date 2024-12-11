@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/segmentio/kafka-go"
@@ -88,6 +89,48 @@ func TestProducerConfig_JsonPretty(t *testing.T) {
 			t.Fatal("result must be equal to expected")
 		}
 	})
+}
+
+func TestProducerConfig_removeSpaceBrokerList(t *testing.T) {
+	type fields struct {
+		Brokers []string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		expected []string
+	}{
+		{
+			name: "Should_Remove_Spaces_In_Broker_Lists",
+			fields: fields{
+				Brokers: []string{" address", "address ", " address "},
+			},
+			expected: []string{"address", "address", "address"},
+		},
+		{
+			name: "Should_Do_Nothing_When_Broker_Lists_Have_Not_Any_Space",
+			fields: fields{
+				Brokers: []string{"address1", "address2", "address3"},
+			},
+			expected: []string{"address1", "address2", "address3"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Given
+			cfg := &WriterConfig{
+				Brokers: tt.fields.Brokers,
+			}
+
+			// When
+			cfg.removeSpaceBrokerList()
+
+			// Then
+			if !reflect.DeepEqual(cfg.Brokers, tt.expected) {
+				t.Errorf("For broker list %v, expected %v", cfg.Brokers, tt.expected)
+			}
+		})
+	}
 }
 
 func TestProducerConfig_String(t *testing.T) {

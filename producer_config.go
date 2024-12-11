@@ -37,6 +37,12 @@ func (cfg WriterConfig) JSON() string {
 		strings.Join(cfg.Brokers, "\", \""), GetBalancerString(cfg.Balancer), cfg.Compression.String())
 }
 
+func (cfg *WriterConfig) removeSpaceBrokerList() {
+	for i := range cfg.Brokers {
+		cfg.Brokers[i] = strings.TrimSpace(cfg.Brokers[i])
+	}
+}
+
 type TransportConfig struct {
 	MetadataTopics []string
 	DialTimeout    time.Duration

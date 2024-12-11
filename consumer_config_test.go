@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -354,6 +355,48 @@ func TestConsumerConfig_JSONPretty(t *testing.T) {
 			t.Fatal("result must be equal to expected")
 		}
 	})
+}
+
+func TestConsumerConfig_removeSpaceBrokerList(t *testing.T) {
+	type fields struct {
+		Reader ReaderConfig
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		expected []string
+	}{
+		{
+			name: "Should_Remove_Spaces_In_Broker_Lists",
+			fields: fields{
+				Reader: ReaderConfig{Brokers: []string{" address", "address ", " address "}},
+			},
+			expected: []string{"address", "address", "address"},
+		},
+		{
+			name: "Should_Do_Nothing_When_Broker_Lists_Have_Not_Any_Space",
+			fields: fields{
+				Reader: ReaderConfig{Brokers: []string{"address1", "address2", "address3"}},
+			},
+			expected: []string{"address1", "address2", "address3"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Given
+			cfg := &ConsumerConfig{
+				Reader: tt.fields.Reader,
+			}
+
+			// When
+			cfg.Reader.removeSpaceBrokerList()
+
+			// Then
+			if !reflect.DeepEqual(cfg.Reader.Brokers, tt.expected) {
+				t.Errorf("For broker list %v, expected %v", cfg.Reader.Brokers, tt.expected)
+			}
+		})
+	}
 }
 
 func getConsumerConfigExample() *ConsumerConfig {
