@@ -23,6 +23,7 @@ type producer struct {
 }
 
 func NewProducer(cfg *ProducerConfig, interceptors ...ProducerInterceptor) (Producer, error) {
+	cfg.Writer.removeSpaceBrokerList()
 	kafkaWriter := &kafka.Writer{
 		Addr:                   kafka.TCP(cfg.Writer.Brokers...),
 		Topic:                  cfg.Writer.Topic,

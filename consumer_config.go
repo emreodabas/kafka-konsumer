@@ -87,6 +87,12 @@ func (cfg ReaderConfig) JSON() string {
 		cfg.MaxWait, cfg.CommitInterval, kcronsumer.ToStringOffset(cfg.StartOffset))
 }
 
+func (cfg *ReaderConfig) removeSpaceBrokerList() {
+	for i := range cfg.Brokers {
+		cfg.Brokers[i] = strings.TrimSpace(cfg.Brokers[i])
+	}
+}
+
 func (cfg *ConsumerConfig) JSON() string {
 	if cfg == nil {
 		return "{}"
@@ -271,7 +277,10 @@ func (cfg *ConsumerConfig) newKafkaReader() (Reader, error) {
 		return nil, err
 	}
 
+	cfg.Reader.removeSpaceBrokerList()
+
 	readerCfg := kafka.ReaderConfig(cfg.Reader)
+
 	readerCfg.Dialer = dialer
 	if cfg.Rack != "" {
 		readerCfg.GroupBalancers = []kafka.GroupBalancer{kafka.RackAffinityGroupBalancer{Rack: cfg.Rack}}
