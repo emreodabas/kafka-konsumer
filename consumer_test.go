@@ -104,16 +104,14 @@ func Test_consumer_process(t *testing.T) {
 			},
 		}
 
-		// When
-		c.process(&Message{})
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic")
+			}
+		}()
 
-		// Then
-		if c.metric.TotalProcessedMessagesCounter != 0 {
-			t.Fatalf("Total Processed Message Counter must equal to 0")
-		}
-		if c.metric.TotalUnprocessedMessagesCounter != 1 {
-			t.Fatalf("Total Unprocessed Message Counter must equal to 1")
-		}
+		// When && Then
+		c.process(&Message{})
 	})
 }
 

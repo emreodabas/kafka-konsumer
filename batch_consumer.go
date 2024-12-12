@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -240,7 +241,9 @@ func (b *batchConsumer) process(chunkMessages []*Message) {
 			}
 
 			if produceErr := b.base.cronsumer.ProduceBatch(cronsumerMessages); produceErr != nil {
-				b.logger.Errorf("Error producing messages to exception/retry topic %s", produceErr.Error())
+				errorMsg := fmt.Sprintf("Error producing messages to exception/retry topic %s", produceErr.Error())
+				b.logger.Error(errorMsg)
+				panic(errorMsg)
 			}
 		}
 	}
