@@ -152,15 +152,30 @@ func (c *consumer) process(message *Message) {
 
 	if consumeErr != nil && c.retryEnabled {
 		retryableMsg := message.toRetryableMessage(c.retryTopic, consumeErr.Error())
-		if produceErr := c.cronsumer.Produce(retryableMsg); produceErr != nil {
-			errorMessage := fmt.Sprintf("Error producing message %s to exception/retry topic %s",
-				string(retryableMsg.Value), produceErr.Error())
+		if err := c.retryWithBackoff(retryableMsg); err != nil {
+			errorMessage := fmt.Sprintf(
+				"Error producing message %s to exception/retry topic %s. Error: %s",
+				string(message.Value), c.retryTopic, err.Error())
 			c.logger.Error(errorMessage)
-			panic(errorMessage)
+			panic(err.Error())
 		}
 	}
 
 	if consumeErr == nil {
 		c.metric.TotalProcessedMessagesCounter++
 	}
+}
+
+func (c *consumer) retryWithBackoff(retryableMsg kcronsumer.Message) error {
+	var produceErr error
+
+	for attempt := 1; attempt <= 5; attempt++ {
+		produceErr = c.cronsumer.Produce(retryableMsg)
+		if produceErr == nil {
+			return nil
+		}
+		time.Sleep((50 * time.Millisecond) * time.Duration(1<<attempt))
+	}
+
+	return produceErr
 }

@@ -266,6 +266,32 @@ func Test_batchConsumer_process(t *testing.T) {
 		bc.process([]*Message{{}, {}, {}})
 	})
 
+	t.Run("When_Re-processing_Is_Failed_And_Retry_Failed_5_times", func(t *testing.T) {
+		// Given
+		mc := mockCronsumer{wantErr: true, retryBehaviorOpen: true, maxRetry: 5}
+		bc := batchConsumer{
+			base: &base{
+				metric: &ConsumerMetric{}, transactionalRetry: true,
+				logger: NewZapLogger(LogLevelDebug), retryEnabled: true, cronsumer: &mc,
+			},
+			consumeFn: func(messages []*Message) error {
+				return errors.New("error case")
+			},
+		}
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic")
+			}
+			if mc.times != mc.maxRetry {
+				t.Errorf("Expected produce to be called %d times, but got %d", mc.maxRetry, mc.times)
+			}
+		}()
+
+		// When && Then
+		bc.process([]*Message{{}, {}, {}})
+	})
+
 	t.Run("When_Transactional_Retry_Disabled", func(t *testing.T) {
 		// Given
 		mc := &mockCronsumer{wantErr: true}
@@ -465,7 +491,10 @@ func createMessages(partitionStart int, partitionEnd int) []*Message {
 }
 
 type mockCronsumer struct {
-	wantErr bool
+	wantErr           bool
+	retryBehaviorOpen bool
+	times             int
+	maxRetry          int
 }
 
 func (m *mockCronsumer) Start() {
@@ -485,6 +514,13 @@ func (m *mockCronsumer) WithLogger(_ lcronsumer.Interface) {
 }
 
 func (m *mockCronsumer) Produce(_ kcronsumer.Message) error {
+	if m.retryBehaviorOpen {
+		if m.wantErr && m.times <= m.maxRetry {
+			m.times++
+			return errors.New("error")
+		}
+		return nil
+	}
 	if m.wantErr {
 		return errors.New("error")
 	}

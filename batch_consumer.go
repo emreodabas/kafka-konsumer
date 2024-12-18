@@ -240,10 +240,11 @@ func (b *batchConsumer) process(chunkMessages []*Message) {
 				}
 			}
 
-			if produceErr := b.base.cronsumer.ProduceBatch(cronsumerMessages); produceErr != nil {
-				errorMsg := fmt.Sprintf("Error producing messages to exception/retry topic %s", produceErr.Error())
+			if err := b.retryBatchWithBackoff(cronsumerMessages); err != nil {
+				errorMsg := fmt.Sprintf(
+					"Error producing messages to exception/retry topic. Error: %s", err.Error())
 				b.logger.Error(errorMsg)
-				panic(errorMsg)
+				panic(err.Error())
 			}
 		}
 	}
@@ -251,4 +252,18 @@ func (b *batchConsumer) process(chunkMessages []*Message) {
 	if consumeErr == nil {
 		b.metric.TotalProcessedMessagesCounter += int64(len(chunkMessages))
 	}
+}
+
+func (b *batchConsumer) retryBatchWithBackoff(retryableMessages []kcronsumer.Message) error {
+	var produceErr error
+
+	for attempt := 1; attempt <= 5; attempt++ {
+		produceErr = b.base.cronsumer.ProduceBatch(retryableMessages)
+		if produceErr == nil {
+			return nil
+		}
+		time.Sleep((50 * time.Millisecond) * time.Duration(1<<attempt))
+	}
+
+	return produceErr
 }
