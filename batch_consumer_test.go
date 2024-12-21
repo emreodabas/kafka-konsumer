@@ -394,7 +394,7 @@ func Test_batchConsumer_chunk(t *testing.T) {
 
 	tests := []testCase{
 		{
-			name:          "Standard chunking with 9 messages",
+			name:          "Should_Return_3_Chunks_For_9_Messages",
 			allMessages:   createMessages(0, 9),
 			chunkSize:     3,
 			chunkByteSize: 10000,
