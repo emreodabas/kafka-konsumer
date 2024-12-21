@@ -39,3 +39,6 @@ integration-test:
 ## run-act: act for running github actions on your local machine
 run-act:
 	act -j test --container-architecture linux/arm64
+
+run-benchmarks:
+	go test -run none -bench . -benchtime=5s
