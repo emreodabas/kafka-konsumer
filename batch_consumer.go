@@ -89,24 +89,42 @@ func (b *batchConsumer) Consume() {
 func (b *batchConsumer) startBatch() {
 	defer b.wg.Done()
 
-	ticker := time.NewTicker(b.messageGroupDuration)
-	defer ticker.Stop()
+	flushTimer := time.NewTimer(b.messageGroupDuration)
+	defer flushTimer.Stop()
 
 	maximumMessageLimit := b.messageGroupLimit * b.concurrency
 	maximumMessageByteSizeLimit := b.messageGroupByteSizeLimit * b.concurrency
+
 	messages := make([]*Message, 0, maximumMessageLimit)
 	commitMessages := make([]kafka.Message, 0, maximumMessageLimit)
 	messageByteSize := 0
+
+	flushBatch := func(reason string) {
+		if len(messages) == 0 {
+			return
+		}
+
+		b.consume(&messages, &commitMessages, &messageByteSize)
+
+		b.logger.Debugf("[batchConsumer] Flushed batch, reason=%s", reason)
+
+		// After flushing, we always reset the timer
+		// But first we need to stop it and drain any event that might be pending
+		if !flushTimer.Stop() {
+			drainTimer(flushTimer)
+		}
+
+		// Now reset to start a new "rolling" interval
+		flushTimer.Reset(b.messageGroupDuration)
+	}
+
 	for {
 		select {
-		case <-ticker.C:
-			if len(messages) == 0 {
-				continue
-			}
-
-			b.consume(&messages, &commitMessages, &messageByteSize)
+		case <-flushTimer.C:
+			flushBatch("time-based (rolling timer)")
 		case msg, ok := <-b.incomingMessageStream:
 			if !ok {
+				flushBatch("channel-closed (final flush)")
 				close(b.batchConsumingStream)
 				close(b.messageProcessedStream)
 				return
@@ -116,7 +134,7 @@ func (b *batchConsumer) startBatch() {
 
 			// Check if there is an enough byte in batch, if not flush it.
 			if maximumMessageByteSizeLimit != 0 && messageByteSize+msgSize > maximumMessageByteSizeLimit {
-				b.consume(&messages, &commitMessages, &messageByteSize)
+				flushBatch("byte-size-limit")
 			}
 
 			messages = append(messages, msg.message)
@@ -125,9 +143,23 @@ func (b *batchConsumer) startBatch() {
 
 			// Check if there is an enough size in batch, if not flush it.
 			if len(messages) == maximumMessageLimit {
-				b.consume(&messages, &commitMessages, &messageByteSize)
+				flushBatch("message-count-limit")
+			} else {
+				// Rolling timer logic: reset the timer each time we get a new message
+				// Because we "stop" it, we might need to drain the channel
+				if !flushTimer.Stop() {
+					drainTimer(flushTimer)
+				}
+				flushTimer.Reset(b.messageGroupDuration)
 			}
 		}
+	}
+}
+
+func drainTimer(t *time.Timer) {
+	select {
+	case <-t.C:
+	default:
 	}
 }
 
