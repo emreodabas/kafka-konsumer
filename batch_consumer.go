@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -175,33 +176,36 @@ func (b *batchConsumer) setupConcurrentWorkers() {
 	}
 }
 
-func chunkMessages(allMessages *[]*Message, chunkSize int, chunkByteSize int) [][]*Message {
-	var chunks [][]*Message
+func chunkMessagesOptimized(allMessages []*Message, chunkSize int, chunkByteSize int) [][]*Message {
+	if chunkSize <= 0 {
+		panic("chunkSize must be greater than 0")
+	}
 
-	allMessageList := *allMessages
+	var chunks [][]*Message
+	totalMessages := len(allMessages)
+	estimatedChunks := (totalMessages + chunkSize - 1) / chunkSize
+	chunks = make([][]*Message, 0, estimatedChunks)
+
 	var currentChunk []*Message
-	currentChunkSize := 0
+	currentChunk = make([]*Message, 0, chunkSize)
 	currentChunkBytes := 0
 
-	for _, message := range allMessageList {
+	for _, message := range allMessages {
 		messageByteSize := len(message.Value)
 
 		// Check if adding this message would exceed either the chunk size or the byte size
-		if len(currentChunk) >= chunkSize || (chunkByteSize != 0 && currentChunkBytes+messageByteSize > chunkByteSize) {
-			// Avoid too low chunkByteSize
+		if len(currentChunk) >= chunkSize || (chunkByteSize > 0 && currentChunkBytes+messageByteSize > chunkByteSize) {
 			if len(currentChunk) == 0 {
-				panic("invalid chunk byte size, please increase it")
+				panic(fmt.Sprintf("invalid chunk byte size (messageGroupByteSizeLimit) %d, "+
+					"message byte size is %d, bigger!, increase chunk byte size limit", chunkByteSize, messageByteSize))
 			}
-			// If it does, finalize the current chunk and start a new one
 			chunks = append(chunks, currentChunk)
-			currentChunk = []*Message{}
-			currentChunkSize = 0
+			currentChunk = make([]*Message, 0, chunkSize)
 			currentChunkBytes = 0
 		}
 
 		// Add the message to the current chunk
 		currentChunk = append(currentChunk, message)
-		currentChunkSize++
 		currentChunkBytes += messageByteSize
 	}
 
@@ -214,11 +218,11 @@ func chunkMessages(allMessages *[]*Message, chunkSize int, chunkByteSize int) []
 }
 
 func (b *batchConsumer) consume(allMessages *[]*Message, commitMessages *[]kafka.Message, messageByteSizeLimit *int) {
-	chunks := chunkMessages(allMessages, b.messageGroupLimit, b.messageGroupByteSizeLimit)
+	chunks := chunkMessagesOptimized(*allMessages, b.messageGroupLimit, b.messageGroupByteSizeLimit)
 
 	if b.preBatchFn != nil {
 		preBatchResult := b.preBatchFn(*allMessages)
-		chunks = chunkMessages(&preBatchResult, b.messageGroupLimit, b.messageGroupByteSizeLimit)
+		chunks = chunkMessagesOptimized(preBatchResult, b.messageGroupLimit, b.messageGroupByteSizeLimit)
 	}
 
 	// Send the messages to process
