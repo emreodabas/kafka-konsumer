@@ -67,22 +67,38 @@ func (c *consumer) Consume() {
 func (c *consumer) startBatch() {
 	defer c.wg.Done()
 
-	ticker := time.NewTicker(c.messageGroupDuration)
-	defer ticker.Stop()
+	flushTimer := time.NewTimer(c.messageGroupDuration)
+	defer flushTimer.Stop()
 
 	messages := make([]*Message, 0, c.concurrency)
 	commitMessages := make([]kafka.Message, 0, c.concurrency)
 
+	flushBatch := func(reason string) {
+		if len(messages) == 0 {
+			return
+		}
+
+		c.consume(&messages, &commitMessages)
+
+		c.logger.Debugf("[singleConsumer] Flushed batch, reason=%s", reason)
+
+		// After flushing, we always reset the timer
+		// But first we need to stop it and drain any event that might be pending
+		if !flushTimer.Stop() {
+			drainTimer(flushTimer)
+		}
+
+		// Now reset to start a new "rolling" interval
+		flushTimer.Reset(c.messageGroupDuration)
+	}
+
 	for {
 		select {
-		case <-ticker.C:
-			if len(messages) == 0 {
-				continue
-			}
-
-			c.consume(&messages, &commitMessages)
+		case <-flushTimer.C:
+			flushBatch("time-based (rolling timer)")
 		case msg, ok := <-c.incomingMessageStream:
 			if !ok {
+				flushBatch("channel-closed (final flush)")
 				close(c.singleConsumingStream)
 				close(c.messageProcessedStream)
 				return
@@ -92,7 +108,14 @@ func (c *consumer) startBatch() {
 			commitMessages = append(commitMessages, *msg.kafkaMessage)
 
 			if len(messages) == c.concurrency {
-				c.consume(&messages, &commitMessages)
+				flushBatch("message-count-limit")
+			} else {
+				// Rolling timer logic: reset the timer each time we get a new message
+				// Because we "stop" it, we might need to drain the channel
+				if !flushTimer.Stop() {
+					drainTimer(flushTimer)
+				}
+				flushTimer.Reset(c.messageGroupDuration)
 			}
 		}
 	}

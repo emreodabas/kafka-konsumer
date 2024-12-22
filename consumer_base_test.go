@@ -59,7 +59,6 @@ func Test_base_startConsume(t *testing.T) {
 			t.Error(diff)
 		}
 	})
-
 	t.Run("Skip_Incoming_Messages_When_SkipMessageByHeaderFn_Is_Applied", func(t *testing.T) {
 		// Given
 		mc := mockReader{}
@@ -218,6 +217,31 @@ func Test_base_Resume(t *testing.T) {
 			t.Fatal("contexts must be differ!")
 		}
 	})
+}
+
+func Test_drainTimer(t *testing.T) {
+	// Test case 1: Timer expires before calling drainTimer
+	t1 := time.NewTimer(10 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond) // Ensure the timer has expired
+	drainTimer(t1)
+	select {
+	case <-t1.C:
+		t.Error("Timer channel should be drained but is not.")
+	default:
+		// Success, the channel is drained
+	}
+
+	// clear timer state for test case 2
+	t1.Reset(50 * time.Millisecond)
+
+	// Test case 2: Timer is still active when calling drainTimer
+	drainTimer(t1)
+	select {
+	case <-t1.C:
+		// Timer should still expire normally
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timer did not expire as expected.")
+	}
 }
 
 type mockReader struct {

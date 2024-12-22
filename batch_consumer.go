@@ -157,13 +157,6 @@ func (b *batchConsumer) startBatch() {
 	}
 }
 
-func drainTimer(t *time.Timer) {
-	select {
-	case <-t.C:
-	default:
-	}
-}
-
 func (b *batchConsumer) setupConcurrentWorkers() {
 	for i := 0; i < b.concurrency; i++ {
 		go func() {

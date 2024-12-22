@@ -3,9 +3,79 @@ package kafka
 import (
 	"context"
 	"errors"
+	"github.com/segmentio/kafka-go"
 	"sync"
 	"testing"
+	"time"
 )
+
+func Test_consumer_startBatch(t *testing.T) {
+	// Given
+	var numberOfBatch int
+
+	mc := mockReader{}
+	c := consumer{
+		base: &base{
+			incomingMessageStream:  make(chan *IncomingMessage, 1),
+			singleConsumingStream:  make(chan *Message, 1),
+			messageProcessedStream: make(chan struct{}, 1),
+			metric:                 &ConsumerMetric{},
+			wg:                     sync.WaitGroup{},
+			messageGroupDuration:   500 * time.Millisecond,
+			r:                      &mc,
+			concurrency:            3,
+			logger:                 NewZapLogger(LogLevelDebug),
+		},
+		consumeFn: func(*Message) error {
+			numberOfBatch++
+			return nil
+		},
+	}
+
+	go func() {
+		// Simulate concurrency of value 3
+		c.base.incomingMessageStream <- &IncomingMessage{
+			kafkaMessage: &kafka.Message{},
+			message:      &Message{},
+		}
+		c.base.incomingMessageStream <- &IncomingMessage{
+			kafkaMessage: &kafka.Message{},
+			message:      &Message{},
+		}
+		c.base.incomingMessageStream <- &IncomingMessage{
+			kafkaMessage: &kafka.Message{},
+			message:      &Message{},
+		}
+
+		time.Sleep(1 * time.Second)
+
+		// Simulate messageGroupDuration
+		c.base.incomingMessageStream <- &IncomingMessage{
+			kafkaMessage: &kafka.Message{},
+			message:      &Message{},
+		}
+
+		time.Sleep(1 * time.Second)
+
+		// Return from startBatch
+		close(c.base.incomingMessageStream)
+	}()
+
+	c.base.wg.Add(1 + c.base.concurrency)
+
+	// When
+	c.setupConcurrentWorkers()
+	c.startBatch()
+
+	// Then
+	if numberOfBatch != 4 {
+		t.Fatalf("Number of batch group must equal to 4")
+	}
+
+	if c.metric.TotalProcessedMessagesCounter != 4 {
+		t.Fatalf("Total Processed Message Counter must equal to 4")
+	}
+}
 
 func Test_consumer_process(t *testing.T) {
 	t.Run("When_Processing_Is_Successful", func(t *testing.T) {

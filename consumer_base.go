@@ -294,3 +294,10 @@ func (c *base) Stop() error {
 
 	return err
 }
+
+func drainTimer(t *time.Timer) {
+	select {
+	case <-t.C:
+	default:
+	}
+}
