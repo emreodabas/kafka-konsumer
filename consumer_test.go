@@ -3,10 +3,11 @@ package kafka
 import (
 	"context"
 	"errors"
-	"github.com/segmentio/kafka-go"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/segmentio/kafka-go"
 )
 
 func Test_consumer_startBatch(t *testing.T) {
