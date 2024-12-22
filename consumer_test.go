@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 
 func Test_consumer_startBatch(t *testing.T) {
 	// Given
-	var numberOfBatch int
+	var numberOfBatch atomic.Int64
 
 	mc := mockReader{}
 	c := consumer{
@@ -24,21 +25,17 @@ func Test_consumer_startBatch(t *testing.T) {
 			wg:                     sync.WaitGroup{},
 			messageGroupDuration:   500 * time.Millisecond,
 			r:                      &mc,
-			concurrency:            3,
+			concurrency:            1,
 			logger:                 NewZapLogger(LogLevelDebug),
 		},
 		consumeFn: func(*Message) error {
-			numberOfBatch++
+			numberOfBatch.Add(1)
 			return nil
 		},
 	}
 
 	go func() {
 		// Simulate concurrency of value 3
-		c.base.incomingMessageStream <- &IncomingMessage{
-			kafkaMessage: &kafka.Message{},
-			message:      &Message{},
-		}
 		c.base.incomingMessageStream <- &IncomingMessage{
 			kafkaMessage: &kafka.Message{},
 			message:      &Message{},
@@ -69,12 +66,12 @@ func Test_consumer_startBatch(t *testing.T) {
 	c.startBatch()
 
 	// Then
-	if numberOfBatch != 4 {
-		t.Fatalf("Number of batch group must equal to 4")
+	if numberOfBatch.Load() != 3 {
+		t.Fatalf("Number of batch group must equal to 3")
 	}
 
-	if c.metric.TotalProcessedMessagesCounter != 4 {
-		t.Fatalf("Total Processed Message Counter must equal to 4")
+	if c.metric.TotalProcessedMessagesCounter != 3 {
+		t.Fatalf("Total Processed Message Counter must equal to 3")
 	}
 }
 

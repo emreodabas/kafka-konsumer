@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 
 func Test_batchConsumer_startBatch(t *testing.T) {
 	// Given
-	var numberOfBatch int
+	var numberOfBatch atomic.Int64
 
 	mc := mockReader{}
 	bc := batchConsumer{
@@ -35,7 +36,7 @@ func Test_batchConsumer_startBatch(t *testing.T) {
 		},
 		messageGroupLimit: 3,
 		consumeFn: func(_ []*Message) error {
-			numberOfBatch++
+			numberOfBatch.Add(1)
 			return nil
 		},
 	}
@@ -75,7 +76,7 @@ func Test_batchConsumer_startBatch(t *testing.T) {
 	bc.startBatch()
 
 	// Then
-	if numberOfBatch != 2 {
+	if numberOfBatch.Load() != 2 {
 		t.Fatalf("Number of batch group must equal to 2")
 	}
 	if bc.metric.TotalProcessedMessagesCounter != 4 {
