@@ -242,9 +242,9 @@ func (b *batchConsumer) process(chunkMessages []*Message) {
 
 			if err := b.retryBatchWithBackoff(cronsumerMessages); err != nil {
 				errorMsg := fmt.Sprintf(
-					"Error producing messages to exception/retry topic. Error: %s", err.Error())
+					"Error producing messages to exception/retry topic: %s. Error: %s", b.retryTopic, err.Error())
 				b.logger.Error(errorMsg)
-				panic(err.Error())
+				panic(errorMsg)
 			}
 		}
 	}
