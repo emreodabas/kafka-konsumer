@@ -532,6 +532,13 @@ func (m *mockCronsumer) GetMetricCollectors() []prometheus.Collector {
 }
 
 func (m *mockCronsumer) ProduceBatch([]kcronsumer.Message) error {
+	if m.retryBehaviorOpen {
+		if m.wantErr && m.times <= m.maxRetry {
+			m.times++
+			return errors.New("error")
+		}
+		return nil
+	}
 	if m.wantErr {
 		return errors.New("error")
 	}
