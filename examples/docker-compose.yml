@@ -10,7 +10,7 @@ services:
       - "4318:4318"
 
   zookeeper:
-    image: debezium/zookeeper
+    image: debezium/zookeeper:2.6
     ports:
       - "2181:2181"
 
