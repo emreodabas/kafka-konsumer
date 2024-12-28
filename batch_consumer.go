@@ -3,6 +3,7 @@ package kafka
 import (
 	"errors"
 	"fmt"
+	"github.com/gofiber/fiber/v2/log"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -262,6 +263,7 @@ func (b *batchConsumer) retryBatchWithBackoff(retryableMessages []kcronsumer.Mes
 		if produceErr == nil {
 			return nil
 		}
+		log.Warnf("Error producing message (attempt %d/%d): %v", attempt, 5, produceErr)
 		time.Sleep((50 * time.Millisecond) * time.Duration(1<<attempt))
 	}
 
