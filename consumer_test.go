@@ -94,6 +94,7 @@ func Test_consumer_process(t *testing.T) {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 1")
 		}
 	})
+
 	t.Run("When_Re-processing_Is_Failed_And_Retry_Failed", func(t *testing.T) {
 		// Given
 		mc := mockCronsumer{wantErr: true}
@@ -104,16 +105,38 @@ func Test_consumer_process(t *testing.T) {
 			},
 		}
 
-		// When
-		c.process(&Message{})
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic")
+			}
+		}()
 
-		// Then
-		if c.metric.TotalProcessedMessagesCounter != 0 {
-			t.Fatalf("Total Processed Message Counter must equal to 0")
+		// When && Then
+		c.process(&Message{})
+	})
+
+	t.Run("When_Re-processing_Is_Failed_And_Retry_Failed_5_times", func(t *testing.T) {
+		// Given
+		mc := mockCronsumer{wantErr: true, retryBehaviorOpen: true, maxRetry: 5}
+
+		c := consumer{
+			base: &base{metric: &ConsumerMetric{}, logger: NewZapLogger(LogLevelDebug), retryEnabled: true, cronsumer: &mc},
+			consumeFn: func(*Message) error {
+				return errors.New("error case")
+			},
 		}
-		if c.metric.TotalUnprocessedMessagesCounter != 1 {
-			t.Fatalf("Total Unprocessed Message Counter must equal to 1")
-		}
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic")
+			}
+			if mc.times != mc.maxRetry {
+				t.Errorf("Expected produce to be called %d times, but got %d", mc.maxRetry, mc.times)
+			}
+		}()
+
+		// When && Then
+		c.process(&Message{})
 	})
 }
 
