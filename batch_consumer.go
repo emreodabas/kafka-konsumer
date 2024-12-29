@@ -90,24 +90,42 @@ func (b *batchConsumer) Consume() {
 func (b *batchConsumer) startBatch() {
 	defer b.wg.Done()
 
-	ticker := time.NewTicker(b.messageGroupDuration)
-	defer ticker.Stop()
+	flushTimer := time.NewTimer(b.messageGroupDuration)
+	defer flushTimer.Stop()
 
 	maximumMessageLimit := b.messageGroupLimit * b.concurrency
 	maximumMessageByteSizeLimit := b.messageGroupByteSizeLimit * b.concurrency
+
 	messages := make([]*Message, 0, maximumMessageLimit)
 	commitMessages := make([]kafka.Message, 0, maximumMessageLimit)
 	messageByteSize := 0
+
+	flushBatch := func(reason string) {
+		if len(messages) == 0 {
+			return
+		}
+
+		b.consume(&messages, &commitMessages, &messageByteSize)
+
+		b.logger.Debugf("[batchConsumer] Flushed batch, reason=%s", reason)
+
+		// After flushing, we always reset the timer
+		// But first we need to stop it and drain any event that might be pending
+		if !flushTimer.Stop() {
+			drainTimer(flushTimer)
+		}
+
+		// Now reset to start a new "rolling" interval
+		flushTimer.Reset(b.messageGroupDuration)
+	}
+
 	for {
 		select {
-		case <-ticker.C:
-			if len(messages) == 0 {
-				continue
-			}
-
-			b.consume(&messages, &commitMessages, &messageByteSize)
+		case <-flushTimer.C:
+			flushBatch("time-based (rolling timer)")
 		case msg, ok := <-b.incomingMessageStream:
 			if !ok {
+				flushBatch("channel-closed (final flush)")
 				close(b.batchConsumingStream)
 				close(b.messageProcessedStream)
 				return
@@ -117,7 +135,7 @@ func (b *batchConsumer) startBatch() {
 
 			// Check if there is an enough byte in batch, if not flush it.
 			if maximumMessageByteSizeLimit != 0 && messageByteSize+msgSize > maximumMessageByteSizeLimit {
-				b.consume(&messages, &commitMessages, &messageByteSize)
+				flushBatch("byte-size-limit")
 			}
 
 			messages = append(messages, msg.message)
@@ -126,7 +144,14 @@ func (b *batchConsumer) startBatch() {
 
 			// Check if there is an enough size in batch, if not flush it.
 			if len(messages) == maximumMessageLimit {
-				b.consume(&messages, &commitMessages, &messageByteSize)
+				flushBatch("message-count-limit")
+			} else {
+				// Rolling timer logic: reset the timer each time we get a new message
+				// Because we "stop" it, we might need to drain the channel
+				if !flushTimer.Stop() {
+					drainTimer(flushTimer)
+				}
+				flushTimer.Reset(b.messageGroupDuration)
 			}
 		}
 	}
@@ -144,33 +169,36 @@ func (b *batchConsumer) setupConcurrentWorkers() {
 	}
 }
 
-func chunkMessages(allMessages *[]*Message, chunkSize int, chunkByteSize int) [][]*Message {
-	var chunks [][]*Message
+func chunkMessagesOptimized(allMessages []*Message, chunkSize int, chunkByteSize int) [][]*Message {
+	if chunkSize <= 0 {
+		panic("chunkSize must be greater than 0")
+	}
 
-	allMessageList := *allMessages
+	var chunks [][]*Message
+	totalMessages := len(allMessages)
+	estimatedChunks := (totalMessages + chunkSize - 1) / chunkSize
+	chunks = make([][]*Message, 0, estimatedChunks)
+
 	var currentChunk []*Message
-	currentChunkSize := 0
+	currentChunk = make([]*Message, 0, chunkSize)
 	currentChunkBytes := 0
 
-	for _, message := range allMessageList {
+	for _, message := range allMessages {
 		messageByteSize := len(message.Value)
 
 		// Check if adding this message would exceed either the chunk size or the byte size
-		if len(currentChunk) >= chunkSize || (chunkByteSize != 0 && currentChunkBytes+messageByteSize > chunkByteSize) {
-			// Avoid too low chunkByteSize
+		if len(currentChunk) >= chunkSize || (chunkByteSize > 0 && currentChunkBytes+messageByteSize > chunkByteSize) {
 			if len(currentChunk) == 0 {
-				panic("invalid chunk byte size, please increase it")
+				panic(fmt.Sprintf("invalid chunk byte size (messageGroupByteSizeLimit) %d, "+
+					"message byte size is %d, bigger!, increase chunk byte size limit", chunkByteSize, messageByteSize))
 			}
-			// If it does, finalize the current chunk and start a new one
 			chunks = append(chunks, currentChunk)
-			currentChunk = []*Message{}
-			currentChunkSize = 0
+			currentChunk = make([]*Message, 0, chunkSize)
 			currentChunkBytes = 0
 		}
 
 		// Add the message to the current chunk
 		currentChunk = append(currentChunk, message)
-		currentChunkSize++
 		currentChunkBytes += messageByteSize
 	}
 
@@ -183,11 +211,11 @@ func chunkMessages(allMessages *[]*Message, chunkSize int, chunkByteSize int) []
 }
 
 func (b *batchConsumer) consume(allMessages *[]*Message, commitMessages *[]kafka.Message, messageByteSizeLimit *int) {
-	chunks := chunkMessages(allMessages, b.messageGroupLimit, b.messageGroupByteSizeLimit)
+	chunks := chunkMessagesOptimized(*allMessages, b.messageGroupLimit, b.messageGroupByteSizeLimit)
 
 	if b.preBatchFn != nil {
 		preBatchResult := b.preBatchFn(*allMessages)
-		chunks = chunkMessages(&preBatchResult, b.messageGroupLimit, b.messageGroupByteSizeLimit)
+		chunks = chunkMessagesOptimized(preBatchResult, b.messageGroupLimit, b.messageGroupByteSizeLimit)
 	}
 
 	// Send the messages to process

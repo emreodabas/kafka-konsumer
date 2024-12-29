@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"reflect"
-	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,7 +18,7 @@ import (
 
 func Test_batchConsumer_startBatch(t *testing.T) {
 	// Given
-	var numberOfBatch int
+	var numberOfBatch atomic.Int64
 
 	mc := mockReader{}
 	bc := batchConsumer{
@@ -32,10 +32,11 @@ func Test_batchConsumer_startBatch(t *testing.T) {
 			messageGroupDuration:   500 * time.Millisecond,
 			r:                      &mc,
 			concurrency:            1,
+			logger:                 NewZapLogger(LogLevelDebug),
 		},
 		messageGroupLimit: 3,
 		consumeFn: func(_ []*Message) error {
-			numberOfBatch++
+			numberOfBatch.Add(1)
 			return nil
 		},
 	}
@@ -75,7 +76,7 @@ func Test_batchConsumer_startBatch(t *testing.T) {
 	bc.startBatch()
 
 	// Then
-	if numberOfBatch != 2 {
+	if numberOfBatch.Load() != 2 {
 		t.Fatalf("Number of batch group must equal to 2")
 	}
 	if bc.metric.TotalProcessedMessagesCounter != 4 {
@@ -99,6 +100,7 @@ func Test_batchConsumer_startBatch_with_preBatch(t *testing.T) {
 			messageGroupDuration:   20 * time.Second,
 			r:                      &mc,
 			concurrency:            1,
+			logger:                 NewZapLogger(LogLevelDebug),
 		},
 		messageGroupLimit: 2,
 		consumeFn: func(_ []*Message) error {
@@ -322,79 +324,6 @@ func Test_batchConsumer_process(t *testing.T) {
 	})
 }
 
-func Test_batchConsumer_chunk(t *testing.T) {
-	tests := []struct {
-		allMessages   []*Message
-		expected      [][]*Message
-		chunkSize     int
-		chunkByteSize int
-	}{
-		{
-			allMessages:   createMessages(0, 9),
-			chunkSize:     3,
-			chunkByteSize: 10000,
-			expected: [][]*Message{
-				createMessages(0, 3),
-				createMessages(3, 6),
-				createMessages(6, 9),
-			},
-		},
-		{
-			allMessages:   []*Message{},
-			chunkSize:     3,
-			chunkByteSize: 10000,
-			expected:      [][]*Message{},
-		},
-		{
-			allMessages:   createMessages(0, 1),
-			chunkSize:     3,
-			chunkByteSize: 10000,
-			expected: [][]*Message{
-				createMessages(0, 1),
-			},
-		},
-		{
-			allMessages:   createMessages(0, 8),
-			chunkSize:     3,
-			chunkByteSize: 10000,
-			expected: [][]*Message{
-				createMessages(0, 3),
-				createMessages(3, 6),
-				createMessages(6, 8),
-			},
-		},
-		{
-			allMessages:   createMessages(0, 3),
-			chunkSize:     3,
-			chunkByteSize: 10000,
-			expected: [][]*Message{
-				createMessages(0, 3),
-			},
-		},
-
-		{
-			allMessages:   createMessages(0, 3),
-			chunkSize:     100,
-			chunkByteSize: 4,
-			expected: [][]*Message{
-				createMessages(0, 1),
-				createMessages(1, 2),
-				createMessages(2, 3),
-			},
-		},
-	}
-
-	for i, tc := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			chunkedMessages := chunkMessages(&tc.allMessages, tc.chunkSize, tc.chunkByteSize)
-
-			if !reflect.DeepEqual(chunkedMessages, tc.expected) && !(len(chunkedMessages) == 0 && len(tc.expected) == 0) {
-				t.Errorf("For chunkSize %d, expected %v, but got %v", tc.chunkSize, tc.expected, chunkedMessages)
-			}
-		})
-	}
-}
-
 func Test_batchConsumer_Pause(t *testing.T) {
 	// Given
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -479,6 +408,187 @@ func Test_batchConsumer_runKonsumerFn(t *testing.T) {
 	})
 }
 
+func Test_batchConsumer_chunk(t *testing.T) {
+	type testCase struct {
+		name          string
+		allMessages   []*Message
+		chunkSize     int
+		chunkByteSize int
+		expected      [][]*Message
+		shouldPanic   bool
+	}
+
+	tests := []testCase{
+		{
+			name:          "Should_Return_3_Chunks_For_9_Messages",
+			allMessages:   createMessages(0, 9),
+			chunkSize:     3,
+			chunkByteSize: 10000,
+			expected: [][]*Message{
+				createMessages(0, 3),
+				createMessages(3, 6),
+				createMessages(6, 9),
+			},
+			shouldPanic: false,
+		},
+		{
+			name:          "Should_Return_Empty_Slice_When_Input_Is_Empty",
+			allMessages:   []*Message{},
+			chunkSize:     3,
+			chunkByteSize: 10000,
+			expected:      [][]*Message{},
+			shouldPanic:   false,
+		},
+		{
+			name:          "Should_Return_Single_Chunk_When_Single_Message",
+			allMessages:   createMessages(0, 1),
+			chunkSize:     3,
+			chunkByteSize: 10000,
+			expected: [][]*Message{
+				createMessages(0, 1),
+			},
+			shouldPanic: false,
+		},
+		{
+			name:          "Should_Splits_Into_Multiple_Chunks_With_Incomplete_Final_Chunk",
+			allMessages:   createMessages(0, 8),
+			chunkSize:     3,
+			chunkByteSize: 10000,
+			expected: [][]*Message{
+				createMessages(0, 3),
+				createMessages(3, 6),
+				createMessages(6, 8),
+			},
+			shouldPanic: false,
+		},
+		{
+			name:          "Should_Return_Exact_Chunk_Size_Forms_Single_Chunk",
+			allMessages:   createMessages(0, 3),
+			chunkSize:     3,
+			chunkByteSize: 10000,
+			expected: [][]*Message{
+				createMessages(0, 3),
+			},
+			shouldPanic: false,
+		},
+		{
+			name:          "Should_Forces_Single_Message_Per_Chunk_When_Small_chunkByteSize_Is_Given",
+			allMessages:   createMessages(0, 3),
+			chunkSize:     100,
+			chunkByteSize: 4, // Each message has Value size 4
+			expected: [][]*Message{
+				createMessages(0, 1),
+				createMessages(1, 2),
+				createMessages(2, 3),
+			},
+			shouldPanic: false,
+		},
+		{
+			name:          "Should_Ignore_Byte_Size_When_chunkByteSize=0",
+			allMessages:   createMessages(0, 5),
+			chunkSize:     2,
+			chunkByteSize: 0,
+			expected: [][]*Message{
+				createMessages(0, 2),
+				createMessages(2, 4),
+				createMessages(4, 5),
+			},
+			shouldPanic: false,
+		},
+		{
+			name:          "Should_Panic_When_chunkByteSize_Less_Than_Message_Size",
+			allMessages:   createMessages(0, 1),
+			chunkSize:     2,
+			chunkByteSize: 3, // Message size is 4
+			expected:      nil,
+			shouldPanic:   true,
+		},
+		{
+			name:          "Should_Panic_When_chunkSize=0",
+			allMessages:   createMessages(0, 1),
+			chunkSize:     0,
+			chunkByteSize: 10000,
+			expected:      nil,
+			shouldPanic:   true,
+		},
+		{
+			name:          "Should_Panic_When_Negative_chunkSize",
+			allMessages:   createMessages(0, 1),
+			chunkSize:     -1,
+			chunkByteSize: 10000,
+			expected:      nil,
+			shouldPanic:   true,
+		},
+		{
+			name:          "Should_Return_Exact_chunkByteSize",
+			allMessages:   createMessages(0, 4),
+			chunkSize:     2,
+			chunkByteSize: 8, // Each message has Value size 4, total 16 bytes
+			expected: [][]*Message{
+				createMessages(0, 2),
+				createMessages(2, 4),
+			},
+			shouldPanic: false,
+		},
+		{
+			name: "Should_Handle_Varying_Message_Byte_Sizes",
+			allMessages: []*Message{
+				{Partition: 0, Value: []byte("a")},    // 1 byte
+				{Partition: 1, Value: []byte("ab")},   // 2 bytes
+				{Partition: 2, Value: []byte("abc")},  // 3 bytes
+				{Partition: 3, Value: []byte("abcd")}, // 4 bytes
+			},
+			chunkSize:     3,
+			chunkByteSize: 6,
+			expected: [][]*Message{
+				{
+					{Partition: 0, Value: []byte("a")},
+					{Partition: 1, Value: []byte("ab")},
+					{Partition: 2, Value: []byte("abc")},
+				},
+				{
+					{Partition: 3, Value: []byte("abcd")},
+				},
+			},
+			shouldPanic: false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.shouldPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("Expected panic for test case '%s', but did not panic", tc.name)
+					}
+				}()
+			}
+
+			chunkedMessages := chunkMessagesOptimized(tc.allMessages, tc.chunkSize, tc.chunkByteSize)
+
+			if !tc.shouldPanic {
+				// Verify the number of chunks
+				if len(chunkedMessages) != len(tc.expected) {
+					t.Errorf("Test case '%s': expected %d chunks, got %d", tc.name, len(tc.expected), len(chunkedMessages))
+				}
+
+				// Verify each chunk's content
+				for i, expectedChunk := range tc.expected {
+					if i >= len(chunkedMessages) {
+						t.Errorf("Test case '%s': missing chunk %d", tc.name, i)
+						continue
+					}
+					actualChunk := chunkedMessages[i]
+					if !messagesEqual(actualChunk, expectedChunk) {
+						t.Errorf("Test case '%s': expected chunk %d to be %v, but got %v", tc.name, i, expectedChunk, actualChunk)
+					}
+				}
+			}
+		})
+	}
+}
+
 func createMessages(partitionStart int, partitionEnd int) []*Message {
 	messages := make([]*Message, 0)
 	for i := partitionStart; i < partitionEnd; i++ {
@@ -488,6 +598,21 @@ func createMessages(partitionStart int, partitionEnd int) []*Message {
 		})
 	}
 	return messages
+}
+
+func messagesEqual(a, b []*Message) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Partition != b[i].Partition {
+			return false
+		}
+		if !reflect.DeepEqual(a[i].Value, b[i].Value) {
+			return false
+		}
+	}
+	return true
 }
 
 type mockCronsumer struct {
