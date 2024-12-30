@@ -120,7 +120,7 @@ func newBase(cfg *ConsumerConfig, messageChSize int) (*base, error) {
 	}
 
 	c := base{
-		metric:                    InitConsumerMetrics(),
+		metric:                    &ConsumerMetric{},
 		incomingMessageStream:     make(chan *IncomingMessage, messageChSize),
 		quit:                      make(chan struct{}),
 		pause:                     make(chan struct{}),
