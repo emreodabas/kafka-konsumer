@@ -55,21 +55,21 @@ func (s *MetricCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(
 		s.totalProcessedMessagesCounter,
 		prometheus.CounterValue,
-		float64(s.consumerMetric.TotalProcessedMessagesCounter),
+		float64(s.consumerMetric.totalProcessedMessagesCounter),
 		emptyStringList...,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
 		s.totalUnprocessedMessagesCounter,
 		prometheus.CounterValue,
-		float64(s.consumerMetric.TotalUnprocessedMessagesCounter),
+		float64(s.consumerMetric.totalUnprocessedMessagesCounter),
 		emptyStringList...,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
 		s.totalErrorCountDuringFetchingMessage,
 		prometheus.CounterValue,
-		float64(s.consumerMetric.TotalErrorCountDuringFetchingMessage),
+		float64(s.consumerMetric.totalErrorCountDuringFetchingMessage),
 		emptyStringList...,
 	)
 }
