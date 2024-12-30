@@ -143,10 +143,10 @@ func (c *consumer) process(message *Message) {
 			// Try to process same message again
 			if consumeErr = c.consumeFn(message); consumeErr != nil {
 				c.logger.Warnf("Consume Function Again Err %s, message is sending to exception/retry topic %s", consumeErr.Error(), c.retryTopic)
-				c.metric.TotalUnprocessedMessagesCounter++
+				c.metric.IncrementTotalUnprocessedMessagesCounter()
 			}
 		} else {
-			c.metric.TotalUnprocessedMessagesCounter++
+			c.metric.IncrementTotalUnprocessedMessagesCounter()
 		}
 	}
 
@@ -162,6 +162,6 @@ func (c *consumer) process(message *Message) {
 	}
 
 	if consumeErr == nil {
-		c.metric.TotalProcessedMessagesCounter++
+		c.metric.IncrementTotalProcessedMessagesCounter()
 	}
 }
