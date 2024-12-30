@@ -3,19 +3,19 @@ package kafka
 import "sync/atomic"
 
 type ConsumerMetric struct {
-	TotalUnprocessedMessagesCounter      int64
-	TotalProcessedMessagesCounter        int64
-	TotalErrorCountDuringFetchingMessage int64
+	totalUnprocessedMessagesCounter      int64
+	totalProcessedMessagesCounter        int64
+	totalErrorCountDuringFetchingMessage int64
 }
 
 func (cm *ConsumerMetric) IncrementTotalUnprocessedMessagesCounter() {
-	atomic.AddInt64(&cm.TotalUnprocessedMessagesCounter, 1)
+	atomic.AddInt64(&cm.totalUnprocessedMessagesCounter, 1)
 }
 
 func (cm *ConsumerMetric) IncrementTotalProcessedMessagesCounter() {
-	atomic.AddInt64(&cm.TotalProcessedMessagesCounter, 1)
+	atomic.AddInt64(&cm.totalProcessedMessagesCounter, 1)
 }
 
 func (cm *ConsumerMetric) IncrementTotalErrorCountDuringFetchingMessage() {
-	atomic.AddInt64(&cm.TotalErrorCountDuringFetchingMessage, 1)
+	atomic.AddInt64(&cm.totalErrorCountDuringFetchingMessage, 1)
 }
