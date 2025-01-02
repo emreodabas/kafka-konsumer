@@ -70,7 +70,7 @@ func Test_consumer_startBatch(t *testing.T) {
 		t.Fatalf("Number of batch group must equal to 3")
 	}
 
-	if c.metric.TotalProcessedMessagesCounter != 3 {
+	if c.metric.totalProcessedMessagesCounter != 3 {
 		t.Fatalf("Total Processed Message Counter must equal to 3")
 	}
 }
@@ -89,10 +89,10 @@ func Test_consumer_process(t *testing.T) {
 		c.process(&Message{})
 
 		// Then
-		if c.metric.TotalProcessedMessagesCounter != 1 {
+		if c.metric.totalProcessedMessagesCounter != 1 {
 			t.Fatalf("Total Processed Message Counter must equal to 3")
 		}
-		if c.metric.TotalUnprocessedMessagesCounter != 0 {
+		if c.metric.totalUnprocessedMessagesCounter != 0 {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 0")
 		}
 	})
@@ -114,10 +114,10 @@ func Test_consumer_process(t *testing.T) {
 		c.process(&Message{})
 
 		// Then
-		if c.metric.TotalProcessedMessagesCounter != 1 {
+		if c.metric.totalProcessedMessagesCounter != 1 {
 			t.Fatalf("Total Processed Message Counter must equal to 1")
 		}
-		if c.metric.TotalUnprocessedMessagesCounter != 0 {
+		if c.metric.totalUnprocessedMessagesCounter != 0 {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 0")
 		}
 	})
@@ -134,10 +134,10 @@ func Test_consumer_process(t *testing.T) {
 		c.process(&Message{})
 
 		// Then
-		if c.metric.TotalProcessedMessagesCounter != 0 {
+		if c.metric.totalProcessedMessagesCounter != 0 {
 			t.Fatalf("Total Processed Message Counter must equal to 0")
 		}
-		if c.metric.TotalUnprocessedMessagesCounter != 1 {
+		if c.metric.totalUnprocessedMessagesCounter != 1 {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 1")
 		}
 	})
@@ -155,10 +155,10 @@ func Test_consumer_process(t *testing.T) {
 		c.process(&Message{})
 
 		// Then
-		if c.metric.TotalProcessedMessagesCounter != 0 {
+		if c.metric.totalProcessedMessagesCounter != 0 {
 			t.Fatalf("Total Processed Message Counter must equal to 0")
 		}
-		if c.metric.TotalUnprocessedMessagesCounter != 1 {
+		if c.metric.totalUnprocessedMessagesCounter != 1 {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 1")
 		}
 	})

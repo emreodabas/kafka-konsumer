@@ -1,7 +1,21 @@
 package kafka
 
+import "sync/atomic"
+
 type ConsumerMetric struct {
-	TotalUnprocessedMessagesCounter      int64
-	TotalProcessedMessagesCounter        int64
-	TotalErrorCountDuringFetchingMessage int64
+	totalUnprocessedMessagesCounter      int64
+	totalProcessedMessagesCounter        int64
+	totalErrorCountDuringFetchingMessage int64
+}
+
+func (cm *ConsumerMetric) IncrementTotalUnprocessedMessagesCounter(delta int64) {
+	atomic.AddInt64(&cm.totalUnprocessedMessagesCounter, delta)
+}
+
+func (cm *ConsumerMetric) IncrementTotalProcessedMessagesCounter(delta int64) {
+	atomic.AddInt64(&cm.totalProcessedMessagesCounter, delta)
+}
+
+func (cm *ConsumerMetric) IncrementTotalErrorCountDuringFetchingMessage(delta int64) {
+	atomic.AddInt64(&cm.totalErrorCountDuringFetchingMessage, delta)
 }

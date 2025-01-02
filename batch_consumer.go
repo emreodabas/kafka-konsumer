@@ -247,10 +247,10 @@ func (b *batchConsumer) process(chunkMessages []*Message) {
 			// Try to process same messages again for resolving transient network errors etc.
 			if consumeErr = b.consumeFn(chunkMessages); consumeErr != nil {
 				b.logger.Warnf("Consume Function Again Err %s, messages are sending to exception/retry topic %s", consumeErr.Error(), b.retryTopic)
-				b.metric.TotalUnprocessedMessagesCounter += int64(len(chunkMessages))
+				b.metric.IncrementTotalUnprocessedMessagesCounter(int64(len(chunkMessages)))
 			}
 		} else {
-			b.metric.TotalUnprocessedMessagesCounter += int64(len(chunkMessages))
+			b.metric.IncrementTotalUnprocessedMessagesCounter(int64(len(chunkMessages)))
 		}
 
 		if consumeErr != nil && b.retryEnabled {
@@ -278,7 +278,7 @@ func (b *batchConsumer) process(chunkMessages []*Message) {
 	}
 
 	if consumeErr == nil {
-		b.metric.TotalProcessedMessagesCounter += int64(len(chunkMessages))
+		b.metric.IncrementTotalProcessedMessagesCounter(int64(len(chunkMessages)))
 	}
 }
 
