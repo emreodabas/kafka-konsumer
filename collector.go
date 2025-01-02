@@ -4,6 +4,7 @@ import (
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/prometheus/client_golang/prometheus"
+	"sync/atomic"
 )
 
 const Name = "kafka_konsumer"
@@ -55,21 +56,21 @@ func (s *MetricCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(
 		s.totalProcessedMessagesCounter,
 		prometheus.CounterValue,
-		float64(s.consumerMetric.totalProcessedMessagesCounter),
+		float64(atomic.LoadInt64(&s.consumerMetric.totalProcessedMessagesCounter)),
 		emptyStringList...,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
 		s.totalUnprocessedMessagesCounter,
 		prometheus.CounterValue,
-		float64(s.consumerMetric.totalUnprocessedMessagesCounter),
+		float64(atomic.LoadInt64(&s.consumerMetric.totalUnprocessedMessagesCounter)),
 		emptyStringList...,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
 		s.totalErrorCountDuringFetchingMessage,
 		prometheus.CounterValue,
-		float64(s.consumerMetric.totalErrorCountDuringFetchingMessage),
+		float64(atomic.LoadInt64(&s.consumerMetric.totalErrorCountDuringFetchingMessage)),
 		emptyStringList...,
 	)
 }
