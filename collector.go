@@ -1,10 +1,11 @@
 package kafka
 
 import (
+	"sync/atomic"
+
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/prometheus/client_golang/prometheus"
-	"sync/atomic"
 )
 
 const Name = "kafka_konsumer"
