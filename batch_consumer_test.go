@@ -79,7 +79,7 @@ func Test_batchConsumer_startBatch(t *testing.T) {
 	if numberOfBatch.Load() != 2 {
 		t.Fatalf("Number of batch group must equal to 2")
 	}
-	if bc.metric.TotalProcessedMessagesCounter != 4 {
+	if bc.metric.totalProcessedMessagesCounter != 4 {
 		t.Fatalf("Total Processed Message Counter must equal to 4")
 	}
 }
@@ -150,7 +150,7 @@ func Test_batchConsumer_startBatch_with_preBatch(t *testing.T) {
 	if numberOfBatch != 2 {
 		t.Fatalf("Number of batch group must equal to 2")
 	}
-	if bc.metric.TotalProcessedMessagesCounter != 2 {
+	if bc.metric.totalProcessedMessagesCounter != 2 {
 		t.Fatalf("Total Processed Message Counter must equal to 2")
 	}
 }
@@ -169,10 +169,10 @@ func Test_batchConsumer_process(t *testing.T) {
 		bc.process([]*Message{{}, {}, {}})
 
 		// Then
-		if bc.metric.TotalProcessedMessagesCounter != 3 {
+		if bc.metric.totalProcessedMessagesCounter != 3 {
 			t.Fatalf("Total Processed Message Counter must equal to 3")
 		}
-		if bc.metric.TotalUnprocessedMessagesCounter != 0 {
+		if bc.metric.totalUnprocessedMessagesCounter != 0 {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 0")
 		}
 	})
@@ -194,10 +194,10 @@ func Test_batchConsumer_process(t *testing.T) {
 		bc.process([]*Message{{}, {}, {}})
 
 		// Then
-		if bc.metric.TotalProcessedMessagesCounter != 3 {
+		if bc.metric.totalProcessedMessagesCounter != 3 {
 			t.Fatalf("Total Processed Message Counter must equal to 3")
 		}
-		if bc.metric.TotalUnprocessedMessagesCounter != 0 {
+		if bc.metric.totalUnprocessedMessagesCounter != 0 {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 0")
 		}
 	})
@@ -214,10 +214,10 @@ func Test_batchConsumer_process(t *testing.T) {
 		bc.process([]*Message{{}, {}, {}})
 
 		// Then
-		if bc.metric.TotalProcessedMessagesCounter != 0 {
+		if bc.metric.totalProcessedMessagesCounter != 0 {
 			t.Fatalf("Total Processed Message Counter must equal to 0")
 		}
-		if bc.metric.TotalUnprocessedMessagesCounter != 3 {
+		if bc.metric.totalUnprocessedMessagesCounter != 3 {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 3")
 		}
 	})
@@ -238,10 +238,10 @@ func Test_batchConsumer_process(t *testing.T) {
 		bc.process([]*Message{{}, {}, {}})
 
 		// Then
-		if bc.metric.TotalProcessedMessagesCounter != 0 {
+		if bc.metric.totalProcessedMessagesCounter != 0 {
 			t.Fatalf("Total Processed Message Counter must equal to 0")
 		}
-		if bc.metric.TotalUnprocessedMessagesCounter != 3 {
+		if bc.metric.totalUnprocessedMessagesCounter != 3 {
 			t.Fatalf("Total Unprocessed Message Counter must equal to 3")
 		}
 	})
