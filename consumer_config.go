@@ -48,7 +48,6 @@ type ConsumerConfig struct {
 	RetryConfiguration              RetryConfiguration
 	LogLevel                        LogLevel
 	Rack                            string
-	VerifyTopicOnStartup            bool
 	ClientID                        string
 	Reader                          ReaderConfig
 	CommitInterval                  time.Duration
@@ -99,10 +98,10 @@ func (cfg *ConsumerConfig) JSON() string {
 	}
 	return fmt.Sprintf(`{"ClientID": %q, "Reader": %s, "BatchConfiguration": %s, "MessageGroupDuration": %q, `+
 		`"TransactionalRetry": %t, "Concurrency": %d, "RetryEnabled": %t, "RetryConfiguration": %s, `+
-		`"VerifyTopicOnStartup": %t, "Rack": %q, "SASL": %s, "TLS": %s}`,
+		`"Rack": %q, "SASL": %s, "TLS": %s}`,
 		cfg.ClientID, cfg.Reader.JSON(), cfg.BatchConfiguration.JSON(),
 		cfg.MessageGroupDuration, *cfg.TransactionalRetry, cfg.Concurrency,
-		cfg.RetryEnabled, cfg.RetryConfiguration.JSON(), cfg.VerifyTopicOnStartup,
+		cfg.RetryEnabled, cfg.RetryConfiguration.JSON(),
 		cfg.Rack, cfg.SASL.JSON(), cfg.TLS.JSON())
 }
 
@@ -130,7 +129,7 @@ func (cfg *ConsumerConfig) newCronsumerConfig() *kcronsumer.Config {
 			Cron:                 cfg.RetryConfiguration.StartTimeCron,
 			Duration:             cfg.RetryConfiguration.WorkDuration,
 			MaxRetry:             cfg.RetryConfiguration.MaxRetry,
-			VerifyTopicOnStartup: cfg.RetryConfiguration.VerifyTopicOnStartup,
+			VerifyTopicOnStartup: true,
 			Concurrency:          cfg.RetryConfiguration.Concurrency,
 			QueueCapacity:        cfg.RetryConfiguration.QueueCapacity,
 			MinBytes:             cfg.Reader.MinBytes,
@@ -219,13 +218,14 @@ type RetryConfiguration struct {
 	// `kafka_cronsumer_discarded_messages_total_current`.
 	MetricPrefix string
 
-	SASL                  *SASLConfig
-	TLS                   *TLSConfig
-	ClientID              string
-	StartTimeCron         string
-	Topic                 string
-	DeadLetterTopic       string
-	Rack                  string
+	SASL            *SASLConfig
+	TLS             *TLSConfig
+	ClientID        string
+	StartTimeCron   string
+	Topic           string
+	DeadLetterTopic string
+	Rack            string
+	// Deprecated: VerifyTopicOnStartup is now always true. This flag will be removed from Cronsumer in future versions.
 	VerifyTopicOnStartup  bool
 	LogLevel              LogLevel
 	Brokers               []string

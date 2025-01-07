@@ -98,20 +98,11 @@ func NewConsumer(cfg *ConsumerConfig) (Consumer, error) {
 func newBase(cfg *ConsumerConfig, messageChSize int) (*base, error) {
 	log := NewZapLogger(cfg.LogLevel)
 
-	if cfg.VerifyTopicOnStartup {
-		kclient, err := newKafkaClient(cfg)
-		if err != nil {
-			return nil, err
-		}
-		exist, err := verifyTopics(kclient, cfg)
-		if err != nil {
-			return nil, err
-		}
-		if !exist {
-			return nil, fmt.Errorf("topics %s does not exist, please check cluster authority etc", cfg.getTopics())
-		}
-		log.Infof("Topic [%s] verified successfully!", cfg.getTopics())
+	if err := verifyTopicOnStartup(cfg); err != nil {
+		return nil, err
 	}
+
+	log.Infof("Topic [%s] verified successfully!", cfg.getTopics())
 
 	reader, err := cfg.newKafkaReader()
 	if err != nil {
@@ -149,6 +140,21 @@ func newBase(cfg *ConsumerConfig, messageChSize int) (*base, error) {
 	c.context, c.cancelFn = context.WithCancel(context.Background())
 
 	return &c, nil
+}
+
+func verifyTopicOnStartup(cfg *ConsumerConfig) error {
+	kclient, err := newKafkaClient(cfg)
+	if err != nil {
+		return err
+	}
+	exist, err := verifyTopics(kclient, cfg)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		return fmt.Errorf("topics %s does not exist, please check cluster authority etc", cfg.getTopics())
+	}
+	return nil
 }
 
 func (c *base) setupCronsumer(cfg *ConsumerConfig, retryFn func(kcronsumer.Message) error) {
