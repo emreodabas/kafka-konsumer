@@ -254,7 +254,7 @@ func TestConsumerConfig_JSON(t *testing.T) {
 			"\"MessageGroupDuration\": \"20ns\", \"TransactionalRetry\": false, \"Concurrency\": 10, \"RetryEnabled\": true, " +
 			"\"RetryConfiguration\": {\"Brokers\": [\"broker-1.test.com\", \"broker-2.test.com\"], \"Topic\": \"test-exception.0\", " +
 			"\"StartTimeCron\": \"*/2 * * * *\", \"WorkDuration\": \"1m0s\", \"MaxRetry\": 3, \"VerifyTopicOnStartup\": true, \"Rack\": \"\"}, " +
-			"\"VerifyTopicOnStartup\": true, \"Rack\": \"stage\", " +
+			"\"Rack\": \"stage\", " +
 			"\"SASL\": {\"Mechanism\": \"scram\", \"Username\": \"user\", \"Password\": \"pass\"}, " +
 			"\"TLS\": {\"RootCAPath\": \"resources/ca\", \"IntermediateCAPath\": \"resources/intCa\"}}"
 		// When
@@ -270,7 +270,7 @@ func TestConsumerConfig_JSON(t *testing.T) {
 			"\"GroupTopics\": [\"\"], \"MaxWait\": \"0s\", \"CommitInterval\": \"0s\", \"StartOffset\": \"earliest\"}, " +
 			"\"BatchConfiguration\": {}, \"MessageGroupDuration\": \"20ns\", \"TransactionalRetry\": false, \"Concurrency\": 10, " +
 			"\"RetryEnabled\": true, \"RetryConfiguration\": {\"Brokers\": [\"\"], \"Topic\": \"\", \"StartTimeCron\": \"\", " +
-			"\"WorkDuration\": \"0s\", \"MaxRetry\": 0, \"VerifyTopicOnStartup\": false, \"Rack\": \"\"}, \"VerifyTopicOnStartup\": true, " +
+			"\"WorkDuration\": \"0s\", \"MaxRetry\": 0, \"VerifyTopicOnStartup\": false, \"Rack\": \"\"}, " +
 			"\"Rack\": \"stage\", \"SASL\": {}, \"TLS\": {}}"
 		// When
 		result := getConsumerConfigWithoutInnerObjectExample().JSON()
@@ -290,7 +290,7 @@ func TestConsumerConfig_String(t *testing.T) {
 			"TransactionalRetry: false, Concurrency: 10, RetryEnabled: true, " +
 			"RetryConfiguration: {Brokers: [\"broker-1.test.com\", \"broker-2.test.com\"], Topic: \"test-exception.0\", " +
 			"StartTimeCron: \"*/2 * * * *\", WorkDuration: \"1m0s\", MaxRetry: 3, VerifyTopicOnStartup: true, Rack: \"\"}, " +
-			"VerifyTopicOnStartup: true, Rack: \"stage\", SASL: {Mechanism: \"scram\", Username: \"user\", Password: \"pass\"}, " +
+			"Rack: \"stage\", SASL: {Mechanism: \"scram\", Username: \"user\", Password: \"pass\"}, " +
 			"TLS: {RootCAPath: \"resources/ca\", IntermediateCAPath: \"resources/intCa\"}"
 		// When
 		result := getConsumerConfigExample().String()
@@ -305,7 +305,7 @@ func TestConsumerConfig_String(t *testing.T) {
 			"GroupTopics: [\"\"], MaxWait: \"0s\", CommitInterval: \"0s\", StartOffset: \"earliest\"}, " +
 			"BatchConfiguration: {}, MessageGroupDuration: \"20ns\", TransactionalRetry: false, Concurrency: 10, " +
 			"RetryEnabled: true, RetryConfiguration: {Brokers: [\"\"], Topic: \"\", StartTimeCron: \"\", WorkDuration: \"0s\", " +
-			"MaxRetry: 0, VerifyTopicOnStartup: false, Rack: \"\"}, VerifyTopicOnStartup: true, Rack: \"stage\", SASL: {}, TLS: {}"
+			"MaxRetry: 0, VerifyTopicOnStartup: false, Rack: \"\"}, Rack: \"stage\", SASL: {}, TLS: {}"
 		// When
 		result := getConsumerConfigWithoutInnerObjectExample().String()
 		// Then
@@ -327,7 +327,7 @@ func TestConsumerConfig_JSONPretty(t *testing.T) {
 			"RetryConfiguration\": {\n\t\t\"Brokers\": [\n\t\t\t\"broker-1.test.com\",\n\t\t\t\"broker-2.test.com\"\n\t\t],\n\t\t\"" +
 			"Topic\": \"test-exception.0\",\n\t\t\"StartTimeCron\": \"*/2 * * * *\",\n\t\t\"WorkDuration\": \"1m0s\",\n\t\t\"" +
 			"MaxRetry\": 3,\n\t\t\"VerifyTopicOnStartup\": true,\n\t\t\"Rack\": \"\"\n\t},\n\t\"" +
-			"VerifyTopicOnStartup\": true,\n\t\"Rack\": \"stage\",\n\t\"" +
+			"Rack\": \"stage\",\n\t\"" +
 			"SASL\": {\n\t\t\"Mechanism\": \"scram\",\n\t\t\"Username\": \"user\",\n\t\t\"Password\": \"pass\"\n\t},\n\t\"" +
 			"TLS\": {\n\t\t\"RootCAPath\": \"resources/ca\",\n\t\t\"IntermediateCAPath\": \"resources/intCa\"\n\t}\n}"
 		// When
@@ -346,7 +346,7 @@ func TestConsumerConfig_JSONPretty(t *testing.T) {
 			"MessageGroupDuration\": \"20ns\",\n\t\"TransactionalRetry\": false,\n\t\"Concurrency\": 10,\n\t\"" +
 			"RetryEnabled\": true,\n\t\"RetryConfiguration\": {\n\t\t\"Brokers\": [\n\t\t\t\"\"\n\t\t],\n\t\t\"" +
 			"Topic\": \"\",\n\t\t\"StartTimeCron\": \"\",\n\t\t\"WorkDuration\": \"0s\",\n\t\t\"MaxRetry\": 0,\n\t\t\"" +
-			"VerifyTopicOnStartup\": false,\n\t\t\"Rack\": \"\"\n\t},\n\t\"VerifyTopicOnStartup\": true,\n\t\"" +
+			"VerifyTopicOnStartup\": false,\n\t\t\"Rack\": \"\"\n\t},\n\t\"" +
 			"Rack\": \"stage\",\n\t\"SASL\": {},\n\t\"TLS\": {}\n}"
 		// When
 		result := getConsumerConfigWithoutInnerObjectExample().JSONPretty()
@@ -425,7 +425,6 @@ func getConsumerConfigExample() *ConsumerConfig {
 			MaxRetry:             3,
 			VerifyTopicOnStartup: true,
 		},
-		VerifyTopicOnStartup: true,
 		TLS: &TLSConfig{
 			RootCAPath:         "resources/ca",
 			IntermediateCAPath: "resources/intCa",
@@ -448,6 +447,5 @@ func getConsumerConfigWithoutInnerObjectExample() *ConsumerConfig {
 		Concurrency:          10,
 		RetryEnabled:         true,
 		RetryConfiguration:   RetryConfiguration{},
-		VerifyTopicOnStartup: true,
 	}
 }
